@@ -1363,6 +1363,30 @@
         document.getElementById('fx-usd-rate').textContent = `1 USD ≈ ${usdToTwd} TWD`;
       }
 
+      let selectedSplitMembers = [];
+      function getActiveMembersList() {
+        const cnt = Math.max(1, parseInt(state.trip.peopleCount, 10) || 4);
+        return Array.isArray(state.trip.members) && state.trip.members.length
+          ? state.trip.members
+          : Array.from({ length: cnt }, (_, i) => `成員 ${i + 1}`);
+      }
+      function renderSplitChips(membersList) {
+        const list = membersList || getActiveMembersList();
+        if (selectedSplitMembers.length === 0) {
+          selectedSplitMembers = [...list];
+        } else {
+          selectedSplitMembers = selectedSplitMembers.filter(m => list.includes(m));
+          if (selectedSplitMembers.length === 0) selectedSplitMembers = [...list];
+        }
+        const box = document.getElementById('exp-split-chips');
+        if (box) {
+          box.innerHTML = list.map(m => {
+            const checked = selectedSplitMembers.includes(m);
+            return `<button type="button" data-toggle-split="${escapeHtml(m)}" class="px-2.5 py-1 rounded-lg border text-xs font-medium transition flex items-center gap-1 ${checked ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300'}">${checked ? '✓ ' : ''}${escapeHtml(m)}</button>`;
+          }).join('');
+        }
+      }
+
       function renderExpenses() {
         const budgetOn = Boolean(state.trip.budgetEnabled);
         const totalBudget = state.trip.budgetTWD || 1;
@@ -2031,30 +2055,6 @@
           URL.revokeObjectURL(url);
           showToast('已匯出 CSV 帳本');
         });
-
-        let selectedSplitMembers = [];
-        function getActiveMembersList() {
-          const cnt = Math.max(1, parseInt(state.trip.peopleCount, 10) || 4);
-          return Array.isArray(state.trip.members) && state.trip.members.length
-            ? state.trip.members
-            : Array.from({ length: cnt }, (_, i) => `成員 ${i + 1}`);
-        }
-        function renderSplitChips(membersList) {
-          const list = membersList || getActiveMembersList();
-          if (selectedSplitMembers.length === 0) {
-            selectedSplitMembers = [...list];
-          } else {
-            selectedSplitMembers = selectedSplitMembers.filter(m => list.includes(m));
-            if (selectedSplitMembers.length === 0) selectedSplitMembers = [...list];
-          }
-          const box = document.getElementById('exp-split-chips');
-          if (box) {
-            box.innerHTML = list.map(m => {
-              const checked = selectedSplitMembers.includes(m);
-              return `<button type="button" data-toggle-split="${escapeHtml(m)}" class="px-2.5 py-1 rounded-lg border text-xs font-medium transition flex items-center gap-1 ${checked ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300'}">${checked ? '✓ ' : ''}${escapeHtml(m)}</button>`;
-            }).join('');
-          }
-        }
 
         // Quick-tap payer chips, split-among chips, & split touched tracking
         document.getElementById('exp-member-chips').addEventListener('click', e => {
