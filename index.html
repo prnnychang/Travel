@@ -103,8 +103,8 @@
               </div>
             </div>
             <div class="glass-pill rounded-xl px-3.5 py-2 text-right">
-              <div class="text-[11px] text-slate-300">剩餘預算</div>
-              <div id="hero-budget-left" class="text-sm sm:text-base font-bold text-emerald-300 leading-tight">NT$ --</div>
+              <div id="hero-budget-label" class="text-[11px] text-slate-300">累計花費</div>
+              <div id="hero-budget-left" class="text-sm sm:text-base font-bold text-white leading-tight">NT$ 0</div>
             </div>
           </div>
         </div>
@@ -301,8 +301,8 @@
     <!-- TAB 3: EXPENSES -->
     <section id="panel-expenses" class="tab-panel hidden mt-4 space-y-4 fade-in">
       <!-- Budget Summary Cards -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80">
+      <div id="exp-summary-grid" class="grid grid-cols-2 gap-3">
+        <div id="card-total-budget" class="hidden bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80">
           <div class="flex items-center justify-between text-xs text-slate-500">
             <span>旅程總預算</span>
             <button id="btn-edit-budget" type="button" class="text-sky-600 hover:underline font-medium">修改</button>
@@ -310,11 +310,14 @@
           <div id="exp-total-budget" class="text-xl font-bold text-slate-900 mt-1">NT$ 0</div>
         </div>
         <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80">
-          <div class="text-xs text-slate-500">累計總花費</div>
+          <div class="flex items-center justify-between text-xs text-slate-500">
+            <span>累計總花費</span>
+            <button id="btn-enable-budget-quick" type="button" class="text-sky-600 hover:underline font-medium">+ 設預算</button>
+          </div>
           <div id="exp-total-spent" class="text-xl font-bold text-rose-600 mt-1">NT$ 0</div>
-          <div id="exp-spent-pct" class="text-[11px] text-slate-400 mt-0.5">佔預算 0%</div>
+          <div id="exp-spent-pct" class="hidden text-[11px] text-slate-400 mt-0.5">佔預算 0%</div>
         </div>
-        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80">
+        <div id="card-remaining-budget" class="hidden bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80">
           <div class="text-xs text-slate-500">剩餘可用預算</div>
           <div id="exp-remaining" class="text-xl font-bold text-emerald-600 mt-1">NT$ 0</div>
           <div class="w-full h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden">
@@ -545,15 +548,19 @@
           <label class="block text-xs font-medium text-slate-600 mb-1">日期區間說明</label>
           <input id="trip-dates-input" type="text" required class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl" />
         </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-medium text-slate-600 mb-1">總預算 (TWD 台幣)</label>
-            <input id="trip-budget-input" type="number" min="100" step="100" required class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl" />
-          </div>
+        <div class="grid grid-cols-2 gap-3 items-end">
           <div>
             <label class="block text-xs font-medium text-slate-600 mb-1">預設同行人數</label>
             <input id="trip-people-input" type="number" min="1" max="20" required class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl" />
           </div>
+          <label class="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer select-none">
+            <input id="trip-budget-enabled" type="checkbox" class="w-4 h-4 rounded accent-slate-900" />
+            <span class="text-xs font-medium text-slate-700">啟用預算上限</span>
+          </label>
+        </div>
+        <div id="trip-budget-wrap" class="hidden">
+          <label class="block text-xs font-medium text-slate-600 mb-1">總預算 (TWD 台幣)</label>
+          <input id="trip-budget-input" type="number" min="100" step="100" class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl" />
         </div>
         <div>
           <label class="block text-xs font-medium text-slate-600 mb-1">同行成員名單（用逗號分隔，記帳可快速點選）</label>
@@ -759,6 +766,7 @@
           trip: {
             title: '東京家族旅行',
             dates: '2026/12/10 – 2026/12/13（4天3夜）',
+            budgetEnabled: false,
             budgetTWD: 80000,
             peopleCount: 4,
             members: ['爸爸', '媽媽', '我', '旅伴4']
@@ -1338,10 +1346,17 @@
       }
 
       function renderExpenses() {
+        const budgetOn = Boolean(state.trip.budgetEnabled);
         const totalBudget = state.trip.budgetTWD || 1;
         const totalSpent = state.expenses.reduce((sum, e) => sum + toTWD(e.amount, e.currency), 0);
         const remaining = totalBudget - totalSpent;
         const pct = Math.min(100, Math.round((totalSpent / totalBudget) * 100));
+
+        document.getElementById('exp-summary-grid').className = budgetOn ? 'grid grid-cols-2 lg:grid-cols-4 gap-3' : 'grid grid-cols-2 gap-3';
+        document.getElementById('card-total-budget').classList.toggle('hidden', !budgetOn);
+        document.getElementById('card-remaining-budget').classList.toggle('hidden', !budgetOn);
+        document.getElementById('exp-spent-pct').classList.toggle('hidden', !budgetOn);
+        document.getElementById('btn-enable-budget-quick').classList.toggle('hidden', budgetOn);
 
         document.getElementById('exp-total-budget').textContent = formatMoney(totalBudget);
         document.getElementById('exp-total-spent').textContent = formatMoney(totalSpent);
@@ -1522,10 +1537,18 @@
         }
 
         const totalSpent = state.expenses.reduce((sum, e) => sum + toTWD(e.amount, e.currency), 0);
-        const remaining = (state.trip.budgetTWD || 0) - totalSpent;
+        const heroBudgetLabel = document.getElementById('hero-budget-label');
         const heroBudget = document.getElementById('hero-budget-left');
-        heroBudget.textContent = (remaining < 0 ? '-' : '') + formatMoney(Math.abs(remaining));
-        heroBudget.className = `text-sm sm:text-base font-bold leading-tight ${remaining < 0 ? 'text-rose-300' : 'text-emerald-300'}`;
+        if (state.trip.budgetEnabled) {
+          const remaining = (state.trip.budgetTWD || 0) - totalSpent;
+          heroBudgetLabel.textContent = '剩餘預算';
+          heroBudget.textContent = (remaining < 0 ? '-' : '') + formatMoney(Math.abs(remaining));
+          heroBudget.className = `text-sm sm:text-base font-bold leading-tight ${remaining < 0 ? 'text-rose-300' : 'text-emerald-300'}`;
+        } else {
+          heroBudgetLabel.textContent = '累計花費';
+          heroBudget.textContent = formatMoney(totalSpent);
+          heroBudget.className = 'text-sm sm:text-base font-bold leading-tight text-white';
+        }
       }
 
       function switchTab(tabName) {
@@ -1948,17 +1971,26 @@
         });
 
         // Trip & Budget Modal
-        function openTripModal() {
+        function syncTripBudgetInputVis() {
+          const enabled = document.getElementById('trip-budget-enabled').checked;
+          document.getElementById('trip-budget-wrap').classList.toggle('hidden', !enabled);
+        }
+        document.getElementById('trip-budget-enabled').addEventListener('change', syncTripBudgetInputVis);
+
+        function openTripModal(forceEnableBudget) {
           document.getElementById('trip-title-input').value = state.trip.title;
           document.getElementById('trip-dates-input').value = state.trip.dates;
-          document.getElementById('trip-budget-input').value = state.trip.budgetTWD;
+          document.getElementById('trip-budget-enabled').checked = forceEnableBudget === true ? true : Boolean(state.trip.budgetEnabled);
+          document.getElementById('trip-budget-input').value = state.trip.budgetTWD || 80000;
+          syncTripBudgetInputVis();
           document.getElementById('trip-people-input').value = Math.max(1, parseInt(state.trip.peopleCount, 10) || 4);
           document.getElementById('trip-members-input').value = Array.isArray(state.trip.members) ? state.trip.members.join(', ') : '';
           document.getElementById('modal-trip').classList.remove('hidden');
         }
-        document.getElementById('btn-edit-trip').addEventListener('click', openTripModal);
-        document.getElementById('btn-edit-budget').addEventListener('click', openTripModal);
-        document.getElementById('btn-edit-people').addEventListener('click', openTripModal);
+        document.getElementById('btn-edit-trip').addEventListener('click', () => openTripModal(false));
+        document.getElementById('btn-edit-budget').addEventListener('click', () => openTripModal(false));
+        document.getElementById('btn-edit-people').addEventListener('click', () => openTripModal(false));
+        document.getElementById('btn-enable-budget-quick').addEventListener('click', () => openTripModal(true));
         document.getElementById('btn-close-trip-modal').addEventListener('click', () => document.getElementById('modal-trip').classList.add('hidden'));
         document.getElementById('btn-cancel-trip-modal').addEventListener('click', () => document.getElementById('modal-trip').classList.add('hidden'));
 
@@ -1966,7 +1998,10 @@
           e.preventDefault();
           state.trip.title = document.getElementById('trip-title-input').value.trim();
           state.trip.dates = document.getElementById('trip-dates-input').value.trim();
-          state.trip.budgetTWD = Math.max(100, parseFloat(document.getElementById('trip-budget-input').value) || 80000);
+          state.trip.budgetEnabled = document.getElementById('trip-budget-enabled').checked;
+          if (state.trip.budgetEnabled) {
+            state.trip.budgetTWD = Math.max(100, parseFloat(document.getElementById('trip-budget-input').value) || 80000);
+          }
           const count = Math.max(1, Math.min(20, parseInt(document.getElementById('trip-people-input').value, 10) || 4));
           const parsedMembers = document.getElementById('trip-members-input').value
             .split(/[,，、]+/)
