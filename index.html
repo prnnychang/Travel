@@ -26,6 +26,12 @@
       background-color: #f4f6f9;
       color: #0f172a;
       -webkit-tap-highlight-color: transparent;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    @media (max-width: 640px) {
+      input, select, textarea {
+        font-size: 16px !important;
+      }
     }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -379,24 +385,29 @@
               <label class="block text-xs font-medium text-slate-600 mb-1">日期</label>
               <input id="exp-date" type="date" required class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none" />
             </div>
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <label class="block text-xs font-medium text-slate-600 mb-1">付款方式</label>
-                <select id="exp-payment" class="w-full px-2.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none">
-                  <option value="信用卡">信用卡</option>
-                  <option value="現金">現金</option>
-                  <option value="電子支付">電子支付</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-slate-600 mb-1">分帳人數</label>
-                <input id="exp-split" type="number" min="1" max="20" value="1" class="w-full px-2.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none" />
-              </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">付款方式</label>
+              <select id="exp-payment" class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none">
+                <option value="信用卡">信用卡</option>
+                <option value="現金">現金</option>
+                <option value="電子支付">電子支付</option>
+              </select>
             </div>
             <div class="sm:col-span-2">
-              <label class="block text-xs font-medium text-slate-600 mb-1">付款人（點選成員或自行輸入）</label>
+              <label class="block text-xs font-medium text-slate-600 mb-1">付款人（誰先付錢）</label>
               <input id="exp-paid-by" type="text" placeholder="例如：爸爸、媽媽、我" class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none" />
               <div id="exp-member-chips" class="flex flex-wrap gap-1.5 mt-1.5"></div>
+            </div>
+            <div class="sm:col-span-2">
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-xs font-medium text-slate-600">分帳對象（這筆要算給誰）</label>
+                <div class="flex items-center gap-2 text-[11px]">
+                  <button id="btn-split-all" type="button" class="text-sky-600 hover:underline font-medium">全選</button>
+                  <span class="text-slate-300">|</span>
+                  <button id="btn-split-payer-only" type="button" class="text-slate-500 hover:underline font-medium">只算付款人</button>
+                </div>
+              </div>
+              <div id="exp-split-chips" class="flex flex-wrap gap-1.5"></div>
             </div>
             <div class="sm:col-span-2 pt-1">
               <button type="submit" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl transition flex items-center justify-center gap-1.5">
@@ -442,6 +453,13 @@
         </div>
         <div id="payer-summary-body" class="hidden mt-3 pt-3 border-t border-slate-100">
           <div id="payer-summary-list" class="grid grid-cols-2 lg:grid-cols-4 gap-2.5"></div>
+          <div id="settlement-plan-box" class="hidden mt-3 p-3 rounded-xl bg-indigo-50/70 border border-indigo-100">
+            <div class="text-xs font-bold text-indigo-900 mb-1.5 flex items-center gap-1.5">
+              <i data-lucide="arrow-right-left" class="w-3.5 h-3.5 text-indigo-600"></i>
+              <span>建議轉帳結算</span>
+            </div>
+            <div id="settlement-plan-list" class="space-y-1 text-xs text-indigo-950"></div>
+          </div>
           <p class="text-[11px] text-slate-400 mt-2">💡 點擊任一位成員卡片，可直接篩選下方該成員的消費明細。</p>
         </div>
       </div>
@@ -1260,7 +1278,7 @@
                 <span class="text-[11px] font-medium px-2 py-0.5 rounded-md border ${meta.badge}">${meta.icon} ${escapeHtml(item.category)}</span>
               </div>
               <h4 class="text-sm sm:text-base font-semibold text-slate-900 mt-1.5 ${item.done ? 'line-through text-slate-500' : ''}">${escapeHtml(item.title)}${item.addedBy ? ` <span class="text-[11px] font-normal text-slate-400">(${escapeHtml(item.addedBy)})</span>` : ''}</h4>
-              ${item.location ? `<div class="text-xs text-slate-500 mt-0.5 flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3 text-slate-400"></i><span>${escapeHtml(item.location)}</span></div>` : ''}
+              ${item.location ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location)}" target="_blank" rel="noopener noreferrer" class="text-xs text-slate-500 hover:text-sky-600 mt-0.5 inline-flex items-center gap-1 transition"><i data-lucide="map-pin" class="w-3 h-3 text-sky-500 shrink-0"></i><span class="underline decoration-slate-300 underline-offset-2">${escapeHtml(item.location)}</span></a>` : ''}
               ${item.note ? `<p class="text-xs text-slate-500 mt-1.5 bg-slate-50 rounded-lg px-2.5 py-1.5 border border-slate-100">${escapeHtml(item.note)}</p>` : ''}
             </div>
             <div class="flex items-center gap-1 shrink-0">
@@ -1380,15 +1398,29 @@
           `${peopleCount} 人同行・每人平均 ${formatMoney(avgPerPerson)}（共 ${state.expenses.length} 筆）`;
 
         const payerTotals = {};
+        const owedTotals = {};
         const payerCounts = {};
         members.forEach(m => {
           payerTotals[m] = 0;
+          owedTotals[m] = 0;
           payerCounts[m] = 0;
         });
         state.expenses.forEach(e => {
+          const amt = toTWD(e.amount, e.currency);
           const who = (e.paidBy || '我').trim() || '我';
-          payerTotals[who] = (payerTotals[who] || 0) + toTWD(e.amount, e.currency);
+          payerTotals[who] = (payerTotals[who] || 0) + amt;
+          if (owedTotals[who] === undefined) owedTotals[who] = 0;
           payerCounts[who] = (payerCounts[who] || 0) + 1;
+
+          const targets = Array.isArray(e.splitAmong) && e.splitAmong.length > 0
+            ? e.splitAmong
+            : (e.splitBy === 1 ? [who] : members);
+          const share = amt / Math.max(1, targets.length);
+          targets.forEach(t => {
+            owedTotals[t] = (owedTotals[t] || 0) + share;
+            if (payerTotals[t] === undefined) payerTotals[t] = 0;
+            if (payerCounts[t] === undefined) payerCounts[t] = 0;
+          });
         });
 
         const payerKeys = Object.keys(payerTotals);
@@ -1404,16 +1436,17 @@
         const payerList = document.getElementById('payer-summary-list');
         payerList.innerHTML = payerKeys.map(k => {
           const paid = payerTotals[k] || 0;
+          const owed = owedTotals[k] || 0;
           const cnt = payerCounts[k] || 0;
-          const diff = paid - avgPerPerson;
+          const diff = paid - owed;
           const isSelected = state.expensePayerFilter === k;
           const diffBadge = state.expenses.length === 0
             ? '<span class="text-[11px] text-slate-400">尚無消費</span>'
             : Math.abs(diff) < 1
-              ? '<span class="text-[11px] font-medium text-slate-500">已剛好結清</span>'
+              ? '<span class="text-[11px] font-medium text-slate-500">已結清</span>'
               : diff > 0
-                ? `<span class="text-[11px] font-semibold text-emerald-600">多付 +${formatMoney(diff)}</span>`
-                : `<span class="text-[11px] font-semibold text-rose-600">應補 -${formatMoney(Math.abs(diff))}</span>`;
+                ? `<span class="text-[11px] font-semibold text-emerald-600">應收 +${formatMoney(diff)}</span>`
+                : `<span class="text-[11px] font-semibold text-rose-600">應付 -${formatMoney(Math.abs(diff))}</span>`;
           return `
             <button type="button" data-filter-payer="${escapeHtml(k)}" class="text-left p-3 rounded-xl border transition flex flex-col justify-between gap-1 ${isSelected ? 'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-500/20' : 'bg-slate-50 border-slate-200/80 hover:border-slate-300'}">
               <div class="flex items-center justify-between gap-2 w-full">
@@ -1421,22 +1454,56 @@
                 <span class="text-[11px] text-slate-400 shrink-0">${cnt} 筆</span>
               </div>
               <div class="text-base font-bold text-indigo-600">${formatMoney(paid)}</div>
+              <div class="text-[11px] text-slate-500">應分攤 ${formatMoney(owed)}</div>
               <div>${diffBadge}</div>
             </button>
           `;
         }).join('');
 
-        // Quick-tap member chips in expense form
+        // Greedy settlement transfers
+        const creditors = [];
+        const debtors = [];
+        payerKeys.forEach(k => {
+          const net = Math.round((payerTotals[k] || 0) - (owedTotals[k] || 0));
+          if (net > 1) creditors.push({ name: k, amt: net });
+          else if (net < -1) debtors.push({ name: k, amt: -net });
+        });
+        creditors.sort((a, b) => b.amt - a.amt);
+        debtors.sort((a, b) => b.amt - a.amt);
+        const transfers = [];
+        let ci = 0, di = 0;
+        while (ci < creditors.length && di < debtors.length) {
+          const give = Math.min(creditors[ci].amt, debtors[di].amt);
+          if (give > 0) {
+            transfers.push(`${escapeHtml(debtors[di].name)} → ${escapeHtml(creditors[ci].name)}：<span class="font-bold">${formatMoney(give)}</span>`);
+          }
+          creditors[ci].amt -= give;
+          debtors[di].amt -= give;
+          if (creditors[ci].amt <= 1) ci++;
+          if (debtors[di].amt <= 1) di++;
+        }
+        const settleBox = document.getElementById('settlement-plan-box');
+        const settleList = document.getElementById('settlement-plan-list');
+        if (settleBox && settleList) {
+          if (transfers.length > 0 && state.expenses.length > 0) {
+            settleBox.classList.remove('hidden');
+            settleList.innerHTML = transfers.map(t => `<div>• ${t}</div>`).join('');
+          } else {
+            settleBox.classList.add('hidden');
+            settleList.innerHTML = '';
+          }
+        }
+
+        // Quick-tap payer chips & multi-select splitAmong chips in expense form
+        const currentPayerVal = (document.getElementById('exp-paid-by')?.value || '').trim();
         const chipsBox = document.getElementById('exp-member-chips');
         if (chipsBox) {
-          chipsBox.innerHTML = members.map(m =>
-            `<button type="button" data-pick-payer="${escapeHtml(m)}" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-xs font-medium text-slate-700 transition">${escapeHtml(m)}</button>`
-          ).join('');
+          chipsBox.innerHTML = members.map(m => {
+            const active = currentPayerVal === m;
+            return `<button type="button" data-pick-payer="${escapeHtml(m)}" class="px-2.5 py-1 rounded-lg text-xs font-medium transition ${active ? 'bg-slate-900 text-white' : 'bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700'}">${escapeHtml(m)}</button>`;
+          }).join('');
         }
-        const splitInput = document.getElementById('exp-split');
-        if (splitInput && !splitInput.dataset.touched) {
-          splitInput.value = peopleCount;
-        }
+        renderSplitChips(members);
 
         // Category breakdown chart
         const catTotals = {};
@@ -1505,7 +1572,7 @@
                 <span>•</span>
                 <span>${escapeHtml(e.paymentMethod)}</span>
                 ${e.paidBy ? `<span>• ${escapeHtml(e.paidBy)} 付款</span>` : ''}
-                ${e.splitBy > 1 ? `<span>• ${e.splitBy}人分帳（每人 ${formatMoney(perPerson)}）</span>` : ''}
+                ${Array.isArray(e.splitAmong) && e.splitAmong.length > 0 ? `<span>• 分給 ${escapeHtml(e.splitAmong.join('、'))}（每人 ${formatMoney(twdAmt / e.splitAmong.length)}）</span>` : (e.splitBy > 1 ? `<span>• ${e.splitBy}人分帳（每人 ${formatMoney(perPerson)}）</span>` : '')}
               </div>
             </div>
             <div class="flex items-center gap-3 shrink-0">
@@ -1877,6 +1944,8 @@
 
         document.getElementById('expense-form').addEventListener('submit', e => {
           e.preventDefault();
+          const paidByVal = document.getElementById('exp-paid-by').value.trim() || ((state.collab && state.collab.nickname) ? state.collab.nickname : '我');
+          const splitTargets = selectedSplitMembers.length > 0 ? [...selectedSplitMembers] : [paidByVal];
           const newExp = {
             id: 'ex_' + Date.now(),
             date: document.getElementById('exp-date').value || new Date().toISOString().slice(0, 10),
@@ -1885,8 +1954,9 @@
             currency: document.getElementById('exp-currency').value,
             category: document.getElementById('exp-category').value,
             paymentMethod: document.getElementById('exp-payment').value,
-            splitBy: Math.max(1, parseInt(document.getElementById('exp-split').value, 10) || 1),
-            paidBy: document.getElementById('exp-paid-by').value.trim() || ((state.collab && state.collab.nickname) ? state.collab.nickname : '我')
+            splitBy: splitTargets.length,
+            splitAmong: splitTargets,
+            paidBy: paidByVal
           };
           state.expenses.unshift(newExp);
           saveState();
@@ -1938,7 +2008,7 @@
         });
 
         document.getElementById('btn-export-csv').addEventListener('click', () => {
-          const headers = ['日期', '項目', '分類', '原幣金額', '幣別', '折合台幣(TWD)', '付款方式', '分帳人數'];
+          const headers = ['日期', '項目', '分類', '原幣金額', '幣別', '折合台幣(TWD)', '付款方式', '付款人', '分帳對象', '分帳人數'];
           const rows = state.expenses.map(e => [
             e.date,
             `"${(e.title || '').replace(/"/g, '""')}"`,
@@ -1947,7 +2017,9 @@
             e.currency,
             Math.round(toTWD(e.amount, e.currency)),
             e.paymentMethod,
-            e.splitBy
+            `"${(e.paidBy || '我').replace(/"/g, '""')}"`,
+            `"${(Array.isArray(e.splitAmong) ? e.splitAmong.join('、') : '').replace(/"/g, '""')}"`,
+            e.splitBy || (Array.isArray(e.splitAmong) ? e.splitAmong.length : 1)
           ]);
           const csv = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
           const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -1960,14 +2032,73 @@
           showToast('已匯出 CSV 帳本');
         });
 
-        // Quick-tap payer chips & split touched tracking
+        let selectedSplitMembers = [];
+        function getActiveMembersList() {
+          const cnt = Math.max(1, parseInt(state.trip.peopleCount, 10) || 4);
+          return Array.isArray(state.trip.members) && state.trip.members.length
+            ? state.trip.members
+            : Array.from({ length: cnt }, (_, i) => `成員 ${i + 1}`);
+        }
+        function renderSplitChips(membersList) {
+          const list = membersList || getActiveMembersList();
+          if (selectedSplitMembers.length === 0) {
+            selectedSplitMembers = [...list];
+          } else {
+            selectedSplitMembers = selectedSplitMembers.filter(m => list.includes(m));
+            if (selectedSplitMembers.length === 0) selectedSplitMembers = [...list];
+          }
+          const box = document.getElementById('exp-split-chips');
+          if (box) {
+            box.innerHTML = list.map(m => {
+              const checked = selectedSplitMembers.includes(m);
+              return `<button type="button" data-toggle-split="${escapeHtml(m)}" class="px-2.5 py-1 rounded-lg border text-xs font-medium transition flex items-center gap-1 ${checked ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300'}">${checked ? '✓ ' : ''}${escapeHtml(m)}</button>`;
+            }).join('');
+          }
+        }
+
+        // Quick-tap payer chips, split-among chips, & split touched tracking
         document.getElementById('exp-member-chips').addEventListener('click', e => {
           const btn = e.target.closest('button[data-pick-payer]');
           if (!btn) return;
           document.getElementById('exp-paid-by').value = btn.dataset.pickPayer;
+          document.querySelectorAll('#exp-member-chips button[data-pick-payer]').forEach(b => {
+            const on = b.dataset.pickPayer === btn.dataset.pickPayer;
+            b.className = `px-2.5 py-1 rounded-lg text-xs font-medium transition ${on ? 'bg-slate-900 text-white' : 'bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700'}`;
+          });
         });
-        document.getElementById('exp-split').addEventListener('input', e => {
-          e.target.dataset.touched = '1';
+
+        document.getElementById('exp-split-chips').addEventListener('click', e => {
+          const btn = e.target.closest('button[data-toggle-split]');
+          if (!btn) return;
+          const m = btn.dataset.toggleSplit;
+          if (selectedSplitMembers.includes(m)) {
+            if (selectedSplitMembers.length > 1) {
+              selectedSplitMembers = selectedSplitMembers.filter(x => x !== m);
+            } else {
+              showToast('至少需選擇 1 位分帳對象');
+              return;
+            }
+          } else {
+            selectedSplitMembers.push(m);
+          }
+          renderSplitChips();
+        });
+
+        document.getElementById('btn-split-all').addEventListener('click', () => {
+          selectedSplitMembers = [...getActiveMembersList()];
+          renderSplitChips();
+        });
+
+        document.getElementById('btn-split-payer-only').addEventListener('click', () => {
+          const who = document.getElementById('exp-paid-by').value.trim();
+          const members = getActiveMembersList();
+          if (who && members.includes(who)) {
+            selectedSplitMembers = [who];
+          } else {
+            selectedSplitMembers = [members[0]];
+            if (!who) document.getElementById('exp-paid-by').value = members[0];
+          }
+          renderSplitChips();
         });
 
         // Trip & Budget Modal
@@ -2011,7 +2142,7 @@
           state.trip.members = parsedMembers.length
             ? parsedMembers
             : Array.from({ length: count }, (_, i) => `成員 ${i + 1}`);
-          delete document.getElementById('exp-split').dataset.touched;
+          selectedSplitMembers = [...state.trip.members];
           saveState();
           document.getElementById('modal-trip').classList.add('hidden');
           renderHero();
@@ -2099,7 +2230,7 @@
               if (doc.exists) {
                 const data = doc.data();
                 isRemoteUpdate = true;
-                if (data.trip) state.trip = data.trip;
+                if (data.trip) state.trip = { ...getDefaultState().trip, ...data.trip };
                 if (Array.isArray(data.days) && data.days.length) state.days = data.days;
                 if (Array.isArray(data.itinerary)) state.itinerary = data.itinerary;
                 if (Array.isArray(data.expenses)) state.expenses = data.expenses;
