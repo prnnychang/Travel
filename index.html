@@ -281,12 +281,12 @@
           <div id="it-progress-bar" class="h-full bg-emerald-500 transition-all duration-300" style="width: 0%"></div>
         </div>
 
-        <!-- Day Pills -->
-        <div class="mt-4 flex flex-wrap items-center gap-2 pb-1">
-          <div id="day-pills-container" class="flex flex-wrap items-center gap-1.5"></div>
-          <button id="btn-add-day" type="button" class="shrink-0 px-3 py-1.5 rounded-xl border border-dashed border-slate-300 hover:border-slate-400 text-xs font-medium text-slate-600 hover:text-slate-900 transition flex items-center gap-1">
+        <!-- Day Pills (Smooth Horizontal Scroll) -->
+        <div class="mt-4 flex items-center gap-2 w-full min-w-0">
+          <div id="day-pills-container" class="flex-1 min-w-0 flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 scroll-smooth" style="-webkit-overflow-scrolling: touch; touch-action: pan-x;"></div>
+          <button id="btn-add-day" type="button" title="加一天" class="shrink-0 px-2.5 py-2 rounded-xl border border-dashed border-slate-300 hover:border-slate-400 text-xs font-medium text-slate-600 hover:text-slate-900 transition flex items-center gap-1 bg-white">
             <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-            <span>加一天</span>
+            <span class="hidden sm:inline">加一天</span>
           </button>
         </div>
 
@@ -1147,11 +1147,11 @@
         state.days.forEach(d => {
           const active = d.id === state.selectedDayId;
           const wrap = document.createElement('div');
-          wrap.className = `inline-flex items-center rounded-xl transition ${active ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`;
+          wrap.className = `shrink-0 inline-flex items-center rounded-xl transition select-none ${active ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`;
           const btn = document.createElement('button');
           btn.type = 'button';
-          btn.className = 'pl-3 pr-2 py-1.5 text-xs font-semibold flex items-center gap-1.5';
-          btn.innerHTML = `<span>${escapeHtml(d.label)}</span><span class="font-normal opacity-75">${escapeHtml(d.date)}</span>`;
+          btn.className = `px-3 py-1.5 text-left flex flex-col leading-tight ${active && state.days.length > 1 ? 'pr-1.5' : ''}`;
+          btn.innerHTML = `<span class="text-xs font-bold whitespace-nowrap">${escapeHtml(d.label)}</span><span class="text-[10px] whitespace-nowrap ${active ? 'text-slate-300' : 'text-slate-400'}">${escapeHtml(d.date)}</span>`;
           btn.addEventListener('click', () => {
             state.selectedDayId = d.id;
             saveState();
@@ -1159,11 +1159,11 @@
           });
           wrap.appendChild(btn);
 
-          if (state.days.length > 1) {
+          if (active && state.days.length > 1) {
             const delBtn = document.createElement('button');
             delBtn.type = 'button';
             delBtn.title = `刪除 ${d.label}`;
-            delBtn.className = `pr-2 pl-0.5 py-1.5 text-xs opacity-60 hover:opacity-100 transition ${active ? 'text-white' : 'text-slate-500 hover:text-rose-600'}`;
+            delBtn.className = 'pr-2.5 pl-1 py-2 text-xs text-slate-300 hover:text-rose-300 transition';
             delBtn.innerHTML = '&times;';
             delBtn.addEventListener('click', (e) => {
               e.stopPropagation();
@@ -1171,13 +1171,13 @@
               if (dayItems.length > 0 && delBtn.dataset.armed !== '1') {
                 delBtn.dataset.armed = '1';
                 delBtn.innerHTML = '確認刪除';
-                delBtn.className = 'pr-2.5 pl-1 py-1.5 text-[11px] font-bold text-rose-500';
+                delBtn.className = 'pr-2.5 pl-1 py-2 text-[11px] font-bold text-rose-300 whitespace-nowrap';
                 showToast(`此天含 ${dayItems.length} 項行程，再點一次「確認刪除」即可移除`);
                 setTimeout(() => {
                   if (delBtn.isConnected) {
                     delBtn.dataset.armed = '0';
                     delBtn.innerHTML = '&times;';
-                    delBtn.className = `pr-2 pl-0.5 py-1.5 text-xs opacity-60 hover:opacity-100 transition ${active ? 'text-white' : 'text-slate-500 hover:text-rose-600'}`;
+                    delBtn.className = 'pr-2.5 pl-1 py-2 text-xs text-slate-300 hover:text-rose-300 transition';
                   }
                 }, 3500);
                 return;
@@ -1195,6 +1195,11 @@
           }
 
           pillsBox.appendChild(wrap);
+          if (active) {
+            requestAnimationFrame(() => {
+              wrap.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+            });
+          }
         });
 
         // Category Filters
@@ -1780,6 +1785,38 @@
             showToast('已刪除該行程');
           }
         });
+
+        // Swipe left/right on itinerary list to switch days
+        (function setupItinerarySwipe() {
+          const el = document.getElementById('itinerary-list');
+          if (!el) return;
+          let startX = 0, startY = 0, startTime = 0;
+          el.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1) return;
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            startTime = Date.now();
+          }, { passive: true });
+          el.addEventListener('touchend', (e) => {
+            if (!startTime || e.changedTouches.length !== 1) return;
+            const dx = e.changedTouches[0].clientX - startX;
+            const dy = e.changedTouches[0].clientY - startY;
+            const dt = Date.now() - startTime;
+            startTime = 0;
+            if (dt > 600 || Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+            const curIdx = state.days.findIndex(d => d.id === state.selectedDayId);
+            if (curIdx === -1) return;
+            const nextIdx = dx < 0 ? curIdx + 1 : curIdx - 1;
+            if (nextIdx >= 0 && nextIdx < state.days.length) {
+              state.selectedDayId = state.days[nextIdx].id;
+              saveState();
+              renderItinerary();
+              el.classList.remove('fade-in');
+              void el.offsetWidth;
+              el.classList.add('fade-in');
+            }
+          }, { passive: true });
+        })();
 
         document.getElementById('btn-add-day').addEventListener('click', () => {
           const maxNum = state.days.reduce((max, d) => {
