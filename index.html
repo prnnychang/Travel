@@ -976,25 +976,80 @@
         };
       }
 
-      async function fetchWeatherForCity(city) {
-        const badge = document.getElementById('w-source-badge');
-        badge.textContent = '更新中...';
-        badge.className = 'text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium';
+      async function fetchWithTimeout(url, ms = 6000) {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), ms);
         try {
-          const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=temperature_2m,precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=7`;
-          const res = await fetch(url);
+          return await fetch(url, { signal: ctrl.signal });
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+
+      async function fetchWeatherForCity(city) {
+        const safeCity = {
+          name: (city && city.name) || '東京',
+          country: (city && city.country) || '日本',
+          lat: Number.isFinite(Number(city && city.lat)) ? Number(city.lat) : 35.6762,
+          lon: Number.isFinite(Number(city && city.lon)) ? Number(city.lon) : 139.6503,
+          fallbackTemp: (city && city.fallbackTemp) || 14
+        };
+        const badge = document.getElementById('w-source-badge');
+        if (!weatherData) {
+          weatherData = buildFallbackWeather(safeCity);
+          renderHero();
+          renderWeather();
+        }
+        if (badge) {
+          badge.textContent = '更新中...';
+          badge.className = 'text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium';
+        }
+        try {
+          const url = `https://api.open-meteo.com/v1/forecast?latitude=${safeCity.lat}&longitude=${safeCity.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=temperature_2m,precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=7`;
+          const res = await fetchWithTimeout(url, 6500);
           if (!res.ok) throw new Error('Weather API error');
           const data = await res.json();
+          if (!data || !data.current) throw new Error('Invalid weather payload');
           weatherData = { ...data, isFallback: false };
-          badge.textContent = 'Open-Meteo 即時';
-          badge.className = 'text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium';
+          if (badge) {
+            badge.textContent = 'Open-Meteo 即時';
+            badge.className = 'text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium';
+          }
         } catch (err) {
-          weatherData = buildFallbackWeather(city);
-          badge.textContent = '離線備援參考';
-          badge.className = 'text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-medium';
+          try {
+            const wttrRes = await fetchWithTimeout(`https://wttr.in/${safeCity.lat},${safeCity.lon}?format=j1`, 5500);
+            if (!wttrRes.ok) throw new Error('wttr error');
+            const wj = await wttrRes.json();
+            const cur = wj.current_condition && wj.current_condition[0];
+            if (!cur) throw new Error('wttr empty');
+            const fallback = buildFallbackWeather(safeCity);
+            fallback.current.temperature_2m = parseFloat(cur.temp_C) || fallback.current.temperature_2m;
+            fallback.current.apparent_temperature = parseFloat(cur.FeelsLikeC) || fallback.current.temperature_2m;
+            fallback.current.relative_humidity_2m = parseFloat(cur.humidity) || 60;
+            fallback.current.wind_speed_10m = parseFloat(cur.windspeedKmph) || 10;
+            if (Array.isArray(wj.weather) && wj.weather.length) {
+              wj.weather.slice(0, 7).forEach((d, idx) => {
+                if (fallback.daily.temperature_2m_max[idx] !== undefined) {
+                  fallback.daily.temperature_2m_max[idx] = parseFloat(d.maxtempC) || fallback.daily.temperature_2m_max[idx];
+                  fallback.daily.temperature_2m_min[idx] = parseFloat(d.mintempC) || fallback.daily.temperature_2m_min[idx];
+                }
+              });
+            }
+            weatherData = { ...fallback, isFallback: false };
+            if (badge) {
+              badge.textContent = '即時氣象 (備援)';
+              badge.className = 'text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium';
+            }
+          } catch (err2) {
+            weatherData = buildFallbackWeather(safeCity);
+            if (badge) {
+              badge.textContent = '離線備援參考';
+              badge.className = 'text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-medium';
+            }
+          }
         }
-        renderWeather();
         renderHero();
+        renderWeather();
       }
 
       async function searchCity(query) {
@@ -1093,9 +1148,11 @@
           temps.push(formatTempNum(hTemps[i]));
         }
 
-        const ctx = document.getElementById('hourly-temp-chart').getContext('2d');
-        if (hourlyChart) hourlyChart.destroy();
-        hourlyChart = new Chart(ctx, {
+        try {
+          if (typeof Chart !== 'undefined') {
+            const ctx = document.getElementById('hourly-temp-chart').getContext('2d');
+            if (hourlyChart) hourlyChart.destroy();
+            hourlyChart = new Chart(ctx, {
           type: 'line',
           data: {
             labels,
@@ -1126,6 +1183,8 @@
             }
           }
         });
+          }
+        } catch (chartErr) {}
 
         // 7-Day Grid
         const grid = document.getElementById('daily-forecast-grid');
